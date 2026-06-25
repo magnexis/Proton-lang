@@ -19,5 +19,12 @@
   "engines": {
     "node": ">=25.0.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "main": "src/index.ts",
+  "files": ["src/","cli/","backend/","lib/","docs/"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/magnexis/Proton-lang.git"
+  },
+  "keywords": ["language","compiler","proton","programming-language","cli"]
 }
