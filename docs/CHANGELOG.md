@@ -1,10 +1,16 @@
 # Changelog
 
+## 1.5.6 - 2026-06-13
+
+### Fixed
+- Fixed execution timeout not being enforced for long-running or infinite loops
+- Runtime now correctly aborts programs that exceed the configured execution time limit
+
 ## Unreleased
 
 - Added VS Code extension documentation covering local debugging, icon theme activation, live-buffer diagnostics, and VSIX installation
 - Added `check-stdin` and `inspect-stdin` CLI entrypoints for editor-integrated validation against unsaved buffers
-- Improved extension packaging metadata and produced a `1.5.5` VSIX artifact
+- Improved extension packaging metadata and produced a `1.5.6` VSIX artifact
 - Added a local HTTP backend service with health, examples, check, build, inspect, analyze, and run endpoints
 - Added structured runtime execution capture for logs, warnings, goals, timeline metadata, graph metadata, and channel metadata
 - Added backend integration coverage to the automated test suite

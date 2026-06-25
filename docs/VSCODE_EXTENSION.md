@@ -8,7 +8,7 @@ Current extension identity:
 
 - package name: `proton-language-support`
 - publisher: `magnificent-language`
-- version: `1.5.5`
+- version: `1.5.6`
 
 The extension currently provides:
 
@@ -76,7 +76,7 @@ This uses:
 From `vscode-extension/`, package the extension with:
 
 ```bash
-vsce package -o proton-language-1.5.5.vsix
+vsce package -o proton-language-1.5.6.vsix
 ```
 
 The repository already includes:
@@ -91,7 +91,7 @@ So the packaged extension stays reasonably lean.
 You can install the packaged extension with:
 
 ```bash
-code --install-extension proton-language-1.5.5.vsix
+code --install-extension proton-language-1.5.6.vsix
 ```
 
 Or through the VS Code UI:

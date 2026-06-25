@@ -4,13 +4,8 @@
 
 **A systems language platform for time-aware, adaptive, observable software.**
 
-![Core Version](https://img.shields.io/badge/core-1.5.2-0B57D0?style=for-the-badge)
-<<<<<<< HEAD
-![VS Code Extension](https://img.shields.io/badge/vscode_extension-1.5.5-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
-=======
-![VS Code Extension](https://img.shields.io/badge/vscode_extension-1.5.3-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
-[![Install on VS Code Marketplace](https://img.shields.io/badge/Install%20on-VS%20Code%20Marketplace-blue?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=magnificent-language.proton-language-support&ssr=false#overview)
->>>>>>> 6978eed0180eafc9aab347f3897dbc83dbb66050
+![Core Version](https://img.shields.io/badge/core-1.5.6-0B57D0?style=for-the-badge)
+![VS Code Extension](https://img.shields.io/badge/vscode_extension-1.5.6-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
 ![Phase](https://img.shields.io/badge/phase-5-6C2BD9?style=for-the-badge)
 ![Backend API](https://img.shields.io/badge/backend-HTTP_API-0F9D58?style=for-the-badge)
 ![Node](https://img.shields.io/badge/node-%3E%3D25-339933?style=for-the-badge&logo=node.js&logoColor=white)
@@ -202,7 +197,7 @@ Current extension metadata:
 
 - package: `proton-language-support`
 - publisher: `magnificent-language`
-- version: `1.5.5`
+- version: `1.5.6`
 
 Local development:
 
@@ -221,13 +216,13 @@ Packaging:
 
 ```bash
 cd vscode-extension
-vsce package -o proton-language-1.5.5.vsix
+vsce package -o proton-language-1.5.6.vsix
 ```
 
 Install locally:
 
 ```bash
-code --install-extension proton-language-1.5.5.vsix
+code --install-extension proton-language-1.5.6.vsix
 ```
 
 ## What Is Implemented

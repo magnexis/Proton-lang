@@ -1,7 +1,7 @@
 {
   "name": "proton-language",
   "displayName": "Proton Language",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Proton Phase 5 compiler, analyzer engine, adaptive runtime features, CLI tooling, and editor support.",
   "type": "module",
   "publisher": "magnificent-language",

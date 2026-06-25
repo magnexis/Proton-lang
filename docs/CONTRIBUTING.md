@@ -19,7 +19,7 @@ Useful extension commands:
 
 ```bash
 cd vscode-extension
-vsce package -o proton-language-1.5.5.vsix
+vsce package -o proton-language-1.5.6.vsix
 ```
 
 ## Contribution Guidelines
