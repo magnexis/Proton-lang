@@ -34,6 +34,7 @@ export interface InspectArtifacts {
 
 export interface RunJavaScriptOptions {
   captureConsole?: boolean;
+  timeoutMs?: number;
   host?: {
     git?: {
       commit?(message: string): boolean;
@@ -104,7 +105,15 @@ export function runJavaScriptDetailed(javascript: string, options: RunJavaScript
   context.globalThis = context;
   vm.createContext(context);
   const script = new vm.Script(javascript, { filename: "generated-proton.js" });
-  script.runInContext(context);
+  const timeoutMs = options.timeoutMs ?? 10_000;
+  try {
+    script.runInContext(context, { timeout: timeoutMs });
+  } catch (err: unknown) {
+    if (err instanceof Error && (err.message === "Script execution timed out." || err.code === "ERR_SCRIPT_EXECUTION_TIMEOUT")) {
+      throw new Error(`Execution timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  }
   const exports = context.__proton_exports as Record<string, (...args: unknown[]) => unknown> | undefined;
   const main = exports?.main;
   if (typeof main !== "function") {
