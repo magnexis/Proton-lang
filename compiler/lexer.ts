@@ -6,6 +6,7 @@ export type TokenKind =
   | "integer"
   | "float"
   | "string"
+  | "interpolated_string"
   | "keyword"
   | "symbol"
   | "eof";
@@ -89,9 +90,13 @@ const KEYWORDS = new Set([
   "unsafe",
   "parallel",
   "secure",
+  "loop",
+  "break",
+  "continue",
 ]);
 
-const DOUBLE_SYMBOLS = new Set(["->", "=>", "::", "==", "!=", "<=", ">="]);
+const DOUBLE_SYMBOLS = new Set(["->", "=>", "::", "==", "!=", "<=", ">=", ".."]);
+const TRIPLE_SYMBOLS = new Set(["..="]);
 const SINGLE_SYMBOLS = new Set([
   ";",
   ":",
@@ -140,6 +145,15 @@ export class Lexer {
       const current = this.peek();
       const nextTwo = current + this.peek(1);
 
+      const nextThree = nextTwo + this.peek(2);
+      if (TRIPLE_SYMBOLS.has(nextThree)) {
+        this.advance();
+        this.advance();
+        this.advance();
+        tokens.push({ kind: "symbol", value: nextThree, span: spanFrom(start, this.location()) });
+        continue;
+      }
+
       if (DOUBLE_SYMBOLS.has(nextTwo)) {
         this.advance();
         this.advance();
@@ -155,6 +169,11 @@ export class Lexer {
 
       if (current === "\"") {
         tokens.push(this.readString());
+        continue;
+      }
+
+      if (current === "`" ) {
+        tokens.push(this.readStringInterpolation());
         continue;
       }
 
@@ -224,6 +243,52 @@ export class Lexer {
     this.advance();
     return {
       kind: "string",
+      value,
+      span: spanFrom(start, this.location()),
+    };
+  }
+
+  private readStringInterpolation(): Token {
+    const start = this.location();
+    this.advance();
+    let value = "";
+    let hasInterpolation = false;
+
+    while (!this.isAtEnd() && this.peek() !== "`") {
+      if (this.peek() === "$" && this.peek(1) === "{") {
+        hasInterpolation = true;
+        value += "${";
+        this.advance();
+        this.advance();
+        let braceDepth = 1;
+        while (!this.isAtEnd() && braceDepth > 0) {
+          const char = this.peek();
+          if (char === "{") {
+            braceDepth++;
+          } else if (char === "}") {
+            braceDepth--;
+          }
+          if (braceDepth > 0) {
+            value += this.advance();
+          } else {
+            value += "}";
+            this.advance();
+          }
+        }
+      } else {
+        value += this.advance();
+      }
+    }
+
+    if (this.isAtEnd()) {
+      throw new ProtonError("Lexing failed.", [
+        diagnosticAt("Unterminated interpolated string literal.", spanFrom(start, this.location())),
+      ]);
+    }
+
+    this.advance();
+    return {
+      kind: "interpolated_string",
       value,
       span: spanFrom(start, this.location()),
     };

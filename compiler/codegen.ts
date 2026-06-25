@@ -7,7 +7,9 @@ import type {
   ExpressionNode,
   FunctionDeclarationNode,
   GraphStatementNode,
+  IndexAccessExpressionNode,
   InjectionDeclarationNode,
+  LoopStatementNode,
   MatchArmNode,
   PatternNode,
   ProgramNode,
@@ -396,6 +398,18 @@ export class CodeGenerator {
       }
       case "GoalStatement":
         return [`__goal_log.push(${JSON.stringify(statement.objective)});`];
+      case "LoopStatement": {
+        const lines = [`while (true) {`];
+        for (const line of this.emitBlock(statement.body, context)) {
+          lines.push(`  ${line}`);
+        }
+        lines.push(`}`);
+        return lines;
+      }
+      case "BreakStatement":
+        return [`break;`];
+      case "ContinueStatement":
+        return [`continue;`];
       case "BlockStatement": {
         const lines = [`{`];
         for (const line of this.emitBlock(statement, context)) {
@@ -484,11 +498,29 @@ export class CodeGenerator {
         if (expression.object.kind === "Identifier" && context.pluginNames.has(expression.object.name)) {
           return `__plugins.${expression.object.name}.${expression.field}`;
         }
+        if (expression.field === "length") {
+          return `${this.emitValue(expression.object, context)}.length`;
+        }
         return `${this.emitCell(expression, context)}.value`;
       case "StructLiteral":
         return `{ ${expression.fields.map((field) => `${field.name}: __cell(${this.emitValue(field.value, context)})`).join(", ")} }`;
       case "ArrayLiteral":
         return `[${expression.elements.map((element) => this.emitValue(element, context)).join(", ")}]`;
+      case "RangeExpression": {
+        const startVal = this.emitValue(expression.start, context);
+        const endVal = this.emitValue(expression.end, context);
+        const endOp = expression.inclusive ? "<=" : "<";
+        return `Array.from({length: (${endVal}) - (${startVal}) + (${expression.inclusive ? 1 : 0})}, (_, i) => (${startVal}) + i)`;
+      }
+      case "IndexAccessExpression":
+        return `${this.emitValue(expression.object, context)}[${this.emitValue(expression.index, context)}]`;
+      case "StringInterpolation":
+        return expression.parts.map((part) => {
+          if (part.kind === "StringLiteral") {
+            return JSON.stringify(part.value);
+          }
+          return `(String(${this.emitValue(part, context)}))`;
+        }).join(" + ");
       case "MatchExpression":
         return this.emitMatchExpression(expression, context);
       default:
@@ -499,6 +531,14 @@ export class CodeGenerator {
   private emitCall(expression: CallExpressionNode, context: EmitContext): string {
     if (expression.callee.kind === "Identifier" && expression.callee.name === "push" && context.mutateTarget) {
       return `${context.mutateTarget}.push(${expression.args.map((arg) => this.emitValue(arg, context)).join(", ")})`;
+    }
+
+    if (expression.callee.kind === "FieldAccessExpression" && expression.callee.field === "push") {
+      return `${this.emitValue(expression.callee.object, context)}.push(${expression.args.map((arg) => this.emitValue(arg, context)).join(", ")})`;
+    }
+
+    if (expression.callee.kind === "FieldAccessExpression" && expression.callee.field === "pop") {
+      return `${this.emitValue(expression.callee.object, context)}.pop()`;
     }
 
     if (expression.callee.kind === "FieldAccessExpression" && (expression.callee.field === "link" || expression.callee.field === "ghost")) {
@@ -591,6 +631,8 @@ export class CodeGenerator {
           return `__plugins.${expression.object.name}.${expression.field}`;
         }
         return `${this.emitValue(expression.object, context)}.${expression.field}`;
+      case "IndexAccessExpression":
+        return `${this.emitValue(expression.object, context)}[${this.emitValue(expression.index, context)}]`;
       case "UnaryExpression":
         return this.emitValue(expression.operand, context);
       default:

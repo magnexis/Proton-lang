@@ -15,6 +15,7 @@ import type {
   GenericTypeNode,
   GoalDeclarationNode,
   GraphStatementNode,
+  IndexAccessExpressionNode,
   InjectionDeclarationNode,
   ImplDeclarationNode,
   MatchArmNode,
@@ -23,6 +24,7 @@ import type {
   PatternNode,
   ProgramNode,
   StatementNode,
+  StringInterpolationNode,
   StructDeclarationNode,
   TypeNode,
   TypeParameterNode,
@@ -1265,6 +1267,11 @@ export class TypeChecker {
           this.diagnostics.push(diagnosticAt("Channel sends require `requires net;` at module scope.", statement.span));
         }
         return false;
+      case "LoopStatement":
+        return this.checkBlock(statement.body, scope, context);
+      case "BreakStatement":
+      case "ContinueStatement":
+        return false;
       case "BlockStatement":
         return this.checkBlock(statement, scope, context);
       default:
@@ -1422,7 +1429,7 @@ export class TypeChecker {
     return { type, binding: "let" };
   }
 
-  private checkAssignable(expression: Extract<ExpressionNode, { kind: "Identifier" | "FieldAccessExpression" | "UnaryExpression" }>, scope: Scope, context: FunctionContext): ProtonType {
+  private checkAssignable(expression: Extract<ExpressionNode, { kind: "Identifier" | "FieldAccessExpression" | "IndexAccessExpression" | "UnaryExpression" }>, scope: Scope, context: FunctionContext): ProtonType {
     if (expression.kind === "Identifier") {
       const variable = this.lookupVariable(expression.name, scope, context, expression.span);
       if (!variable) {
@@ -1432,6 +1439,15 @@ export class TypeChecker {
         this.diagnostics.push(diagnosticAt(`Cannot assign to immutable variable '${expression.name}'.`, expression.span));
       }
       return variable.symbol.type;
+    }
+
+    if (expression.kind === "IndexAccessExpression") {
+      const objectType = this.checkExpression(expression.object, scope, context);
+      if (objectType.kind === "vec") {
+        return objectType.element;
+      }
+      this.diagnostics.push(diagnosticAt("Index assignment requires a Vec value.", expression.object.span));
+      return { kind: "primitive", name: "void" };
     }
 
     if (expression.kind === "FieldAccessExpression") {
@@ -1525,6 +1541,12 @@ export class TypeChecker {
         return this.checkStructLiteral(expression, scope, context, expectedType);
       case "ArrayLiteral":
         return this.checkArrayLiteral(expression, scope, context, expectedType);
+      case "RangeExpression":
+        return this.checkRangeExpression(expression, scope, context);
+      case "IndexAccessExpression":
+        return this.checkIndexAccess(expression, scope, context);
+      case "StringInterpolation":
+        return this.checkStringInterpolation(expression, scope, context);
       case "MatchExpression":
         return this.checkMatchExpression(expression, scope, context, expectedType);
       default:
@@ -1607,8 +1629,31 @@ export class TypeChecker {
   }
 
   private checkCallExpression(expression: CallExpressionNode, scope: Scope, context: FunctionContext, expectedType?: ProtonType): ProtonType {
-    if (expression.callee.kind === "Identifier" && expression.callee.name === "push") {
+    if (expression.callee.kind === "Identifier" && expression.callee.name === "push" && context.mutateTarget) {
       return this.checkPushCall(expression, scope, context);
+    }
+
+    if (expression.callee.kind === "FieldAccessExpression" && expression.callee.field === "push") {
+      const objectType = this.checkExpression(expression.callee.object, scope, context);
+      if (objectType.kind !== "vec") {
+        this.diagnostics.push(diagnosticAt("Method 'push' requires a Vec value.", expression.callee.object.span));
+        return { kind: "primitive", name: "void" };
+      }
+      if (expression.args.length !== 1) {
+        this.diagnostics.push(diagnosticAt("Method 'push' expects exactly one argument.", expression.span));
+      } else {
+        this.checkExpression(expression.args[0]!, scope, context, objectType.element);
+      }
+      return { kind: "primitive", name: "void" };
+    }
+
+    if (expression.callee.kind === "FieldAccessExpression" && expression.callee.field === "pop") {
+      const objectType = this.checkExpression(expression.callee.object, scope, context);
+      if (objectType.kind !== "vec") {
+        this.diagnostics.push(diagnosticAt("Method 'pop' requires a Vec value.", expression.callee.object.span));
+        return { kind: "primitive", name: "void" };
+      }
+      return objectType.element;
     }
 
     if (expression.callee.kind === "FieldAccessExpression" && (expression.callee.field === "link" || expression.callee.field === "ghost")) {
@@ -1841,6 +1886,9 @@ export class TypeChecker {
       }
       return method.returnType;
     }
+    if (objectType.kind === "vec" && expression.field === "length") {
+      return { kind: "primitive", name: "int" };
+    }
     if (objectType.kind !== "struct") {
       this.diagnostics.push(diagnosticAt("Field access requires a struct value.", expression.span));
       return { kind: "primitive", name: "void" };
@@ -1912,6 +1960,52 @@ export class TypeChecker {
       }
     }
     return { kind: "vec", element: elementType ?? { kind: "primitive", name: "void" } };
+  }
+
+  private checkRangeExpression(
+    expression: Extract<ExpressionNode, { kind: "RangeExpression" }>,
+    scope: Scope,
+    context: FunctionContext,
+  ): ProtonType {
+    const startType = this.checkExpression(expression.start, scope, context);
+    const endType = this.checkExpression(expression.end, scope, context);
+    if (!this.isNumeric(startType)) {
+      this.diagnostics.push(diagnosticAt("Range start must be a numeric type.", expression.start.span));
+    }
+    if (!this.isNumeric(endType)) {
+      this.diagnostics.push(diagnosticAt("Range end must be a numeric type.", expression.end.span));
+    }
+    return { kind: "vec", element: startType };
+  }
+
+  private checkIndexAccess(
+    expression: Extract<ExpressionNode, { kind: "IndexAccessExpression" }>,
+    scope: Scope,
+    context: FunctionContext,
+  ): ProtonType {
+    const objectType = this.checkExpression(expression.object, scope, context);
+    const indexType = this.checkExpression(expression.index, scope, context);
+    if (!this.isNumeric(indexType)) {
+      this.diagnostics.push(diagnosticAt("Array index must be a numeric type.", expression.index.span));
+    }
+    if (objectType.kind === "vec") {
+      return objectType.element;
+    }
+    this.diagnostics.push(diagnosticAt("Index access requires a Vec type.", expression.object.span));
+    return { kind: "primitive", name: "void" };
+  }
+
+  private checkStringInterpolation(
+    expression: Extract<ExpressionNode, { kind: "StringInterpolation" }>,
+    scope: Scope,
+    context: FunctionContext,
+  ): ProtonType {
+    for (const part of expression.parts) {
+      if (part.kind !== "StringLiteral") {
+        this.checkExpression(part, scope, context);
+      }
+    }
+    return { kind: "primitive", name: "str" };
   }
 
   private checkMatchExpression(expression: MatchExpressionNode, scope: Scope, context: FunctionContext, expectedType?: ProtonType): ProtonType {

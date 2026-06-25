@@ -1,0 +1,72 @@
+module demo.ranges;
+
+use core.io::print;
+
+// Exclusive range: 0..5 generates [0, 1, 2, 3, 4]
+fn exclusive_range() -> int :: strict {
+  let nums: Vec<int> = 0..5;
+
+  let i: int = 0;
+  loop {
+    if i >= nums.length {
+      break;
+    }
+    print(nums[i]);
+    i = i + 1;
+  }
+
+  return 0;
+}
+
+// Inclusive range: 1..=5 generates [1, 2, 3, 4, 5]
+fn inclusive_range() -> int :: strict {
+  let nums: Vec<int> = 1..=5;
+
+  let i: int = 0;
+  loop {
+    if i >= nums.length {
+      break;
+    }
+    print(nums[i]);
+    i = i + 1;
+  }
+
+  return 0;
+}
+
+// Range with variables
+fn dynamic_range(start: int, end: int) -> int :: strict {
+  let nums: Vec<int> = start..end;
+
+  let sum: int = 0;
+  let i: int = 0;
+  loop {
+    if i >= nums.length {
+      break;
+    }
+    sum = sum + nums[i];
+    i = i + 1;
+  }
+
+  print(sum);
+  return sum;
+}
+
+// String interpolation with ranges
+fn range_interpolation() -> int :: strict {
+  let items: Vec<int> = 1..=3;
+  let count: int = items.length;
+  // String interpolation using backtick syntax
+  print(`Range produced ${count} items`);
+  print(`First item is ${items[0]}`);
+  return 0;
+}
+
+@profile(high_performance)
+fn main() -> int :: strict {
+  exclusive_range();
+  inclusive_range();
+  dynamic_range(3, 7);
+  range_interpolation();
+  return 0;
+}

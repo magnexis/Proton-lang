@@ -14,10 +14,12 @@ import {
   type BlockStatementNode,
   type BooleanLiteralNode,
   type BooleanPatternNode,
+  type BreakStatementNode,
   type CallExpressionNode,
   type BuildDeclarationNode,
   type ChannelDeclarationNode,
   type ConstDeclarationNode,
+  type ContinueStatementNode,
   type ContractDeclarationNode,
   type DetectorDeclarationNode,
   type DurationLiteralNode,
@@ -37,12 +39,14 @@ import {
   type GroupExpressionNode,
   type IdentifierNode,
   type IdentifierPatternNode,
+  type IndexAccessExpressionNode,
   type InjectionDeclarationNode,
   type IfStatementNode,
   type ImplDeclarationNode,
   type IntegerLiteralNode,
   type IntegerPatternNode,
   type IntentStatementNode,
+  type LoopStatementNode,
   type MatchArmNode,
   type MatchExpressionNode,
   type MonitorDeclarationNode,
@@ -59,6 +63,7 @@ import {
   type PrimitiveTypeNode,
   type ProfileAnnotationNode,
   type ProgramNode,
+  type RangeExpressionNode,
   type ReferenceTypeNode,
   type RequiresDeclarationNode,
   type ReturnStatementNode,
@@ -67,6 +72,7 @@ import {
   type SourceLocation,
   type SpawnStatementNode,
   type StatementNode,
+  type StringInterpolationNode,
   type StringLiteralNode,
   type StringPatternNode,
   type StructDeclarationNode,
@@ -89,6 +95,7 @@ import {
 } from "./ast.ts";
 import { ProtonError, diagnosticAt } from "./diagnostics.ts";
 import type { Token } from "./lexer.ts";
+import { Lexer } from "./lexer.ts";
 
 const PRECEDENCE: Record<string, number> = {
   "==": 1,
@@ -97,10 +104,13 @@ const PRECEDENCE: Record<string, number> = {
   ">": 2,
   "<=": 2,
   ">=": 2,
+  "..": 0,
+  "..=": 0,
   "+": 3,
   "-": 3,
   "*": 4,
   "/": 4,
+  "%": 4,
 };
 
 const PRIMITIVE_TYPES = new Set(["int", "i32", "i64", "f32", "f64", "bool", "str", "void"]);
@@ -946,6 +956,15 @@ export class Parser {
     if (this.matchKeyword("goal")) {
       return this.parseGoalStatement();
     }
+    if (this.matchKeyword("loop")) {
+      return this.parseLoopStatement();
+    }
+    if (this.matchKeyword("break")) {
+      return this.parseBreakStatement();
+    }
+    if (this.matchKeyword("continue")) {
+      return this.parseContinueStatement();
+    }
     if (this.checkSymbol("{")) {
       return this.parseBlock();
     }
@@ -1197,6 +1216,34 @@ export class Parser {
     };
   }
 
+  private parseLoopStatement(): LoopStatementNode {
+    const start = this.previous().span.start;
+    const body = this.parseBlock();
+    return {
+      kind: "LoopStatement",
+      body,
+      span: spanFrom(start, body.span.end),
+    };
+  }
+
+  private parseBreakStatement(): BreakStatementNode {
+    const start = this.previous().span.start;
+    const semicolon = this.expectSymbol(";");
+    return {
+      kind: "BreakStatement",
+      span: spanFrom(start, semicolon.span.end),
+    };
+  }
+
+  private parseContinueStatement(): ContinueStatementNode {
+    const start = this.previous().span.start;
+    const semicolon = this.expectSymbol(";");
+    return {
+      kind: "ContinueStatement",
+      span: spanFrom(start, semicolon.span.end),
+    };
+  }
+
   private parseType(): TypeNode {
     if (this.matchSymbol("*")) {
       const start = this.previous().span.start;
@@ -1260,6 +1307,10 @@ export class Parser {
         left = this.finishCall(left);
         continue;
       }
+      if (this.matchSymbol("[")) {
+        left = this.finishIndexAccess(left);
+        continue;
+      }
       if (this.matchSymbol(".")) {
         const field = this.expectNameSegment();
         left = {
@@ -1278,6 +1329,20 @@ export class Parser {
       const operatorPrecedence = PRECEDENCE[operator.value];
       if (operatorPrecedence === undefined || operatorPrecedence <= precedence) {
         break;
+      }
+
+      if (operator.value === ".." || operator.value === "..=") {
+        this.advance();
+        const right = this.parseExpression(0);
+        const range: RangeExpressionNode = {
+          kind: "RangeExpression",
+          start: left,
+          end: right,
+          inclusive: operator.value === "..=",
+          span: spanFrom(left.span.start, right.span.end),
+        };
+        left = range;
+        continue;
       }
 
       this.advance();
@@ -1340,6 +1405,10 @@ export class Parser {
         span: token.span,
       };
       return stringNode;
+    }
+
+    if (token.kind === "interpolated_string") {
+      return this.parseInterpolatedString(token);
     }
 
     if (token.kind === "keyword" && (token.value === "true" || token.value === "false")) {
@@ -1573,6 +1642,95 @@ export class Parser {
     };
   }
 
+  private finishIndexAccess(object: ExpressionNode): IndexAccessExpressionNode {
+    const index = this.parseExpression();
+    const close = this.expectSymbol("]");
+    return {
+      kind: "IndexAccessExpression",
+      object,
+      index,
+      span: spanFrom(object.span.start, close.span.end),
+    };
+  }
+
+  private parseInterpolatedString(token: Token): StringInterpolationNode {
+    const parts: (StringLiteralNode | ExpressionNode)[] = [];
+    let remaining = token.value;
+    let offset = token.span.start.offset + 1;
+
+    while (remaining.length > 0) {
+      const interpIndex = remaining.indexOf("${");
+      if (interpIndex === -1) {
+        if (remaining.length > 0) {
+          const endOffset = offset + remaining.length;
+          parts.push({
+            kind: "StringLiteral",
+            value: remaining,
+            raw: remaining,
+            span: {
+              start: { offset, line: token.span.start.line, column: token.span.start.column },
+              end: { offset: endOffset, line: token.span.end.line, column: token.span.end.column },
+            },
+          });
+        }
+        break;
+      }
+
+      if (interpIndex > 0) {
+        const textPart = remaining.substring(0, interpIndex);
+        parts.push({
+          kind: "StringLiteral",
+          value: textPart,
+          raw: textPart,
+          span: {
+            start: { offset, line: token.span.start.line, column: token.span.start.column },
+            end: { offset: offset + textPart.length, line: token.span.start.line, column: token.span.start.column },
+          },
+        });
+        offset += interpIndex;
+      }
+
+      remaining = remaining.substring(interpIndex + 2);
+      offset += 2;
+
+      let braceDepth = 1;
+      let exprEnd = 0;
+      for (let i = 0; i < remaining.length; i++) {
+        if (remaining[i] === "{") {
+          braceDepth++;
+        } else if (remaining[i] === "}") {
+          braceDepth--;
+          if (braceDepth === 0) {
+            exprEnd = i;
+            break;
+          }
+        }
+      }
+
+      if (exprEnd === 0 && braceDepth > 0) {
+        throw new ProtonError("Parsing failed.", [
+          diagnosticAt("Unterminated expression in interpolated string.", token.span),
+        ]);
+      }
+
+      const exprSource = remaining.substring(0, exprEnd);
+      const lexer = new Lexer(exprSource);
+      const exprTokens = lexer.tokenize();
+      const exprParser = new Parser(exprTokens);
+      const expr = exprParser.parseExpression();
+      parts.push(expr);
+
+      remaining = remaining.substring(exprEnd + 1);
+      offset += exprEnd + 1;
+    }
+
+    return {
+      kind: "StringInterpolation",
+      parts,
+      span: token.span,
+    };
+  }
+
   private parseQualifiedName(separators: string[]): string[] {
     const parts = [this.expectNameSegment().value];
     while (separators.some((separator) => this.checkSymbol(separator))) {
@@ -1583,7 +1741,7 @@ export class Parser {
   }
 
   private isAssignable(expression: ExpressionNode): expression is AssignableExpressionNode {
-    if (expression.kind === "Identifier" || expression.kind === "FieldAccessExpression") {
+    if (expression.kind === "Identifier" || expression.kind === "FieldAccessExpression" || expression.kind === "IndexAccessExpression") {
       return true;
     }
     return expression.kind === "UnaryExpression" && expression.operator === "*";

@@ -303,6 +303,9 @@ export type StatementNode =
   | ObserveStatementNode
   | AdaptStatementNode
   | GoalStatementNode
+  | LoopStatementNode
+  | BreakStatementNode
+  | ContinueStatementNode
   | BlockStatementNode;
 
 export interface VariableStatementNode {
@@ -419,11 +422,28 @@ export interface GoalStatementNode {
   span: SourceSpan;
 }
 
+export interface LoopStatementNode {
+  kind: "LoopStatement";
+  body: BlockStatementNode;
+  span: SourceSpan;
+}
+
+export interface BreakStatementNode {
+  kind: "BreakStatement";
+  span: SourceSpan;
+}
+
+export interface ContinueStatementNode {
+  kind: "ContinueStatement";
+  span: SourceSpan;
+}
+
 export type ExpressionNode =
   | IntegerLiteralNode
   | FloatLiteralNode
   | DurationLiteralNode
   | StringLiteralNode
+  | StringInterpolationNode
   | BooleanLiteralNode
   | IdentifierNode
   | PathExpressionNode
@@ -431,14 +451,17 @@ export type ExpressionNode =
   | UnaryExpressionNode
   | CallExpressionNode
   | FieldAccessExpressionNode
+  | IndexAccessExpressionNode
   | StructLiteralNode
   | GroupExpressionNode
   | ArrayLiteralNode
+  | RangeExpressionNode
   | MatchExpressionNode;
 
 export type AssignableExpressionNode =
   | IdentifierNode
   | FieldAccessExpressionNode
+  | IndexAccessExpressionNode
   | UnaryExpressionNode;
 
 export interface IntegerLiteralNode {
@@ -467,6 +490,12 @@ export interface StringLiteralNode {
   kind: "StringLiteral";
   value: string;
   raw: string;
+  span: SourceSpan;
+}
+
+export interface StringInterpolationNode {
+  kind: "StringInterpolation";
+  parts: (StringLiteralNode | ExpressionNode)[];
   span: SourceSpan;
 }
 
@@ -540,6 +569,21 @@ export interface GroupExpressionNode {
 export interface ArrayLiteralNode {
   kind: "ArrayLiteral";
   elements: ExpressionNode[];
+  span: SourceSpan;
+}
+
+export interface IndexAccessExpressionNode {
+  kind: "IndexAccessExpression";
+  object: ExpressionNode;
+  index: ExpressionNode;
+  span: SourceSpan;
+}
+
+export interface RangeExpressionNode {
+  kind: "RangeExpression";
+  start: ExpressionNode;
+  end: ExpressionNode;
+  inclusive: boolean;
   span: SourceSpan;
 }
 

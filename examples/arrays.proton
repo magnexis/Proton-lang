@@ -1,0 +1,90 @@
+module demo.arrays;
+
+use core.io::print;
+
+// Array literals and index access
+fn array_basics() -> int :: strict {
+  let numbers: Vec<int> = [10, 20, 30, 40, 50];
+
+  // Access elements by index
+  print(numbers[0]);
+  print(numbers[2]);
+  print(numbers[4]);
+
+  // Get array length
+  let len: int = numbers.length;
+  print(len);
+
+  return 0;
+}
+
+// Array mutation with push and pop
+fn array_mutation() -> int :: strict {
+  mut stack: Vec<int> = [1, 2, 3];
+
+  // Push elements
+  stack.push(4);
+  stack.push(5);
+  print(stack.length);
+
+  // Pop elements
+  let top: int = stack.pop();
+  print(top);
+  print(stack.length);
+
+  // Index assignment
+  stack[0] = 100;
+  print(stack[0]);
+
+  return 0;
+}
+
+// Loop over array using loop construct
+fn sum_array() -> int :: strict {
+  let items: Vec<int> = [10, 20, 30, 40, 50];
+  let sum: int = 0;
+  let i: int = 0;
+
+  loop {
+    if i >= items.length {
+      break;
+    }
+    sum = sum + items[i];
+    i = i + 1;
+  }
+
+  print(sum);
+  return sum;
+}
+
+// Find element with loop and continue
+fn find_first_even() -> int :: strict {
+  let data: Vec<int> = [1, 3, 4, 7, 8, 9];
+  let i: int = 0;
+  let result: int = -1;
+
+  loop {
+    if i >= data.length {
+      break;
+    }
+    let val: int = data[i];
+    if val % 2 != 0 {
+      i = i + 1;
+      continue;
+    }
+    result = val;
+    break;
+  }
+
+  print(result);
+  return result;
+}
+
+@profile(high_performance)
+fn main() -> int :: strict {
+  array_basics();
+  array_mutation();
+  sum_array();
+  find_first_even();
+  return 0;
+}

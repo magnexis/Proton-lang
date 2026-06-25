@@ -1,0 +1,69 @@
+module demo.pattern_matching;
+
+use core.io::print;
+
+// Pattern matching on integers
+fn describe_number(n: int) -> str :: strict {
+  let label: str = match n {
+    case 0 => "zero"
+    case 1 => "one"
+    case 2 => "two"
+    case 3 => "three"
+    case _ => "many"
+  };
+  return label;
+}
+
+// Pattern matching on booleans
+fn bool_label(b: bool) -> str :: strict {
+  return match b {
+    case true => "yes"
+    case false => "no"
+  };
+}
+
+// Pattern matching on strings
+fn classify_color(color: str) -> str :: strict {
+  return match color {
+    case "red" => "warm"
+    case "blue" => "cool"
+    case _ => "other"
+  };
+}
+
+// Pattern matching in a loop with break
+fn classify_numbers() -> int :: strict {
+  let count: int = 0;
+  loop {
+    if count > 5 {
+      break;
+    }
+    let desc: str = match count {
+      case 0 => "start"
+      case 1 => "one step"
+      case _ => "going..."
+    };
+    print(desc);
+    count = count + 1;
+  }
+  return count;
+}
+
+@profile(high_performance)
+fn main() -> int :: strict {
+  print(describe_number(0));
+  print(describe_number(1));
+  print(describe_number(2));
+  print(describe_number(99));
+
+  print(bool_label(true));
+  print(bool_label(false));
+
+  print(classify_color("red"));
+  print(classify_color("blue"));
+  print(classify_color("green"));
+
+  classify_numbers();
+
+  return 0;
+}

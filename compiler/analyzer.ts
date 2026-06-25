@@ -250,8 +250,13 @@ function walkBlock(block: BlockStatementNode, visit: (statement: StatementNode) 
       case "SyncStatement":
       case "IntentStatement":
       case "SandboxStatement":
+        walkBlock(statement.body, visit);
+        break;
       case "BlockStatement":
-        walkBlock(statement.body ?? statement, visit);
+        walkBlock(statement, visit);
+        break;
+      case "LoopStatement":
+        walkBlock(statement.body, visit);
         break;
       case "MutateStatement":
         walkBlock(statement.body, visit);
