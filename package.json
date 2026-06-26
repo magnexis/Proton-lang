@@ -1,6 +1,6 @@
 {
   "name": "proton-lang",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "Proton Phase 5 compiler, analyzer engine, adaptive runtime features, CLI tooling, and editor support.",
   "type": "module",
   "bin": {
@@ -21,10 +21,22 @@
   },
   "license": "MIT",
   "main": "src/index.ts",
-  "files": ["src/","cli/","backend/","lib/","docs/"],
+  "files": [
+    "src/",
+    "cli/",
+    "backend/",
+    "lib/",
+    "docs/"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/magnexis/Proton-lang.git"
   },
-  "keywords": ["language","compiler","proton","programming-language","cli"]
+  "keywords": [
+    "language",
+    "compiler",
+    "proton",
+    "programming-language",
+    "cli"
+  ]
 }
